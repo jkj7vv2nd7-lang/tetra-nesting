@@ -1,0 +1,900 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>四面体マトリョーシカ工房</title>
+<link rel="icon" type="image/png" href="icon.png">
+<link rel="apple-touch-icon" href="icon-180.png">
+<style>
+:root{
+  --bg:#fdf6ec; --card:#ffffff; --ink:#3a2c1c; --sub:#7a6a58;
+  --accent:#d2691e; --accent2:#2e7d5b; --line:#ead9c2;
+  --gold:#e9a13b; --danger:#c0392b;
+}
+*{box-sizing:border-box; -webkit-tap-highlight-color:transparent}
+html,body{margin:0;padding:0}
+body{font-family:"Hiragino Maru Gothic ProN","Hiragino Sans","Noto Sans JP",sans-serif;background:var(--bg);color:var(--ink)}
+.wrap{max-width:760px;margin:0 auto;padding:14px 14px 40px}
+header h1{font-size:24px;margin:6px 0 2px}
+header p{margin:0 0 10px;color:var(--sub);font-size:13px}
+.topbar{display:flex;gap:8px;align-items:center;margin:8px 0 12px}
+.sound-btn{border:1.5px solid var(--line);background:var(--card);color:var(--ink);border-radius:999px;padding:7px 14px;font-size:14px;cursor:pointer}
+nav.tabs{display:flex;gap:6px;margin-bottom:12px}
+nav.tabs button{flex:1;border:1.5px solid var(--line);background:var(--card);color:var(--ink);border-radius:12px;padding:10px 4px;font-size:15px;cursor:pointer}
+nav.tabs button.on{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:700}
+section.tab{display:none}
+section.tab.on{display:block}
+.card{background:var(--card);border:1.5px solid var(--line);border-radius:16px;padding:14px;margin-bottom:12px}
+.card h2{font-size:17px;margin:2px 0 8px}
+.card h3{font-size:15px;margin:12px 0 6px}
+.card p,.card li{font-size:14px;line-height:1.75}
+.card ul,.card ol{margin:6px 0;padding-left:22px}
+.btn{border:1.5px solid var(--accent);background:var(--accent);color:#fff;border-radius:999px;padding:10px 18px;font-size:15px;font-weight:700;cursor:pointer}
+.btn.sub{background:#fff;color:var(--accent)}
+.btn.ghost{background:#fff;color:var(--ink);border-color:var(--line)}
+.btn:disabled{opacity:.4;cursor:default}
+.btn-row{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.seg{display:inline-flex;border:1.5px solid var(--line);border-radius:999px;overflow:hidden}
+.seg button{border:0;background:#fff;color:var(--ink);padding:8px 14px;font-size:15px;cursor:pointer}
+.seg button.on{background:var(--accent2);color:#fff;font-weight:700}
+table.sizes{border-collapse:collapse;width:100%;font-size:14px;margin-top:8px}
+table.sizes th,table.sizes td{border:1px solid var(--line);padding:6px 8px;text-align:center}
+table.sizes th{background:#faf0dd}
+.swatch{display:inline-block;width:14px;height:14px;border-radius:4px;vertical-align:-2px;margin-right:5px;border:1px solid rgba(0,0,0,.18)}
+canvas.stage{width:100%;height:auto;display:block;background:#fffdf8;border:1.5px solid var(--line);border-radius:12px}
+canvas.draw{touch-action:none}
+.note{font-size:12.5px;color:var(--sub);line-height:1.7}
+.warn{background:#fdf0ec;border:1.5px solid #efc4b8;border-radius:12px;padding:10px 12px;font-size:13.5px;line-height:1.7}
+.status{font-weight:700;color:var(--accent2);min-height:1.4em;font-size:14px}
+select,input[type="file"]{font-size:14px}
+.field{margin:10px 0}
+.field label{display:block;font-size:13px;color:var(--sub);margin-bottom:5px}
+#bootError{display:none;background:#fdecea;border:2px solid var(--danger);color:var(--danger);border-radius:12px;padding:14px;font-size:14px;line-height:1.7;margin:14px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>四面体マトリョーシカ工房</h1>
+    <p>正四面体の展開図を色紙に印刷して組み立て、入れ子にしてから切り開く工作のための工房です</p>
+  </header>
+  <div class="topbar">
+    <button class="sound-btn" id="soundBtn" type="button">🔊 音：オン</button>
+  </div>
+  <nav class="tabs">
+    <button type="button" data-tab="gen" class="on">型紙</button>
+    <button type="button" data-tab="sim">切り開き</button>
+    <button type="button" data-tab="guide">作り方・コラム</button>
+  </nav>
+
+  <!-- 型紙ジェネレーター -->
+  <section class="tab on" id="tab-gen">
+    <div class="card">
+      <h2>入れ子の型紙</h2>
+      <p>層の数を選ぶと、入れ子にできる寸法の展開図をまとめて用意します。一辺の長さは「同じ向きで重ねたとき、内側の四面体が外側の斜面から約3.3mm離れる」ように計算してあります（紙の厚みと、包み込むときの余裕を見ています）。色紙は層ごとに色を変えると、切り開いたときに層の色が現れてきれいです。</p>
+      <div class="field">
+        <label>層の数</label>
+        <span class="seg" id="layerSeg">
+          <button type="button" data-layers="1">1層</button>
+          <button type="button" data-layers="2">2層</button>
+          <button type="button" data-layers="3">3層</button>
+          <button type="button" data-layers="4">4層</button>
+          <button type="button" data-layers="5" class="on">5層</button>
+        </span>
+      </div>
+      <table class="sizes" id="sizeTable"></table>
+      <p class="note">印刷はA4判・横向き・300dpiの画像です。層ごとに1枚ずつ書き出せます。各画像には実寸の確認用に「5cm」の線が入っています。印刷の倍率は「実際のサイズ（100%）」にしてください。</p>
+    </div>
+    <div class="card">
+      <h2>絵柄</h2>
+      <p>展開図に載せる模様を選べます。内蔵の模様は、展開図どうしを並べたときに継ぎ目でつながるように作ってあります（切り開きタブの敷き詰めで確かめられます）。自分の画像は、端末の中でだけ処理して展開図に合わせます。外部へは送信しません。</p>
+      <div class="field">
+        <label>模様の種類</label>
+        <span class="seg" id="patternSeg">
+          <button type="button" data-pattern="none" class="on">むじ</button>
+          <button type="button" data-pattern="dots">みずたま</button>
+          <button type="button" data-pattern="waves">なみなみ</button>
+          <button type="button" data-pattern="triangles">さんかく</button>
+          <button type="button" data-pattern="flowers">おはな</button>
+          <button type="button" data-pattern="image">自分の画像</button>
+        </span>
+      </div>
+      <div class="field" id="imageField" style="display:none">
+        <label>画像ファイル（端末内でのみ処理します）</label>
+        <input type="file" id="imageInput" accept="image/*">
+      </div>
+      <canvas class="stage" id="genCanvas" width="720" height="470"></canvas>
+      <div class="btn-row" id="dlRow"></div>
+      <p class="status" id="genStatus"></p>
+    </div>
+  </section>
+
+  <!-- 切り開きシミュレーター -->
+  <section class="tab" id="tab-sim">
+    <div class="card">
+      <h2>切り取り線を引く</h2>
+      <p>展開図の上で、指やマウスで自由に線を引いてください。面の境界（点線）をまたいでもかまいません。線の両端を展開図の輪郭まで引くと、その線で2つに切り開けます。輪郭を越えて引くと、線はその辺の反対側の対応する位置から続いて現れます。これは、敷き詰めたときに継ぎ目で線がつながる描き方です。</p>
+      <canvas class="stage draw" id="simCanvas" width="720" height="620"></canvas>
+      <div class="btn-row">
+        <button class="btn" id="splitBtn" type="button">切り開く</button>
+        <button class="btn ghost" id="cutClearBtn" type="button">線を消す</button>
+      </div>
+      <p class="status" id="simStatus"></p>
+    </div>
+    <div class="card">
+      <h2>平面の敷き詰め</h2>
+      <p>この展開図は、平面に隙間なく並べられます。切り取り線も模様も、継ぎ目でつながります。切り開いた四面体を何個も並べた様子を想像してみてください。</p>
+      <canvas class="stage" id="tileCanvas" width="720" height="520"></canvas>
+      <div class="btn-row">
+        <button class="btn sub" id="tilePlayBtn" type="button">敷き詰めアニメーション</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- 作り方・コラム -->
+  <section class="tab" id="tab-guide">
+    <div class="card">
+      <h2>作り方</h2>
+      <ol>
+        <li>型紙タブで層の数を選び、層ごとの画像を書き出して、色紙に印刷します（層ごとに色を変えるのがおすすめです）。印刷後は「5cm」の線が本当に5cmか、定規で確かめてください。</li>
+        <li>展開図を輪郭の実線で切り取ります。点線は折り線です。折り線は先に折り目をつけておくと組み立てやすくなります。</li>
+        <li>一番小さい層（内側）から組み立てます。3つの角の三角形を中央の三角形の上に折り上げ、糊しろに糊をつけて貼り合わせます。</li>
+        <li>次の層は、組み立てた四面体を包み込むようにして組み立てます。型紙の寸法には余裕（斜面から約3.3mm）を見てあるので、無理に押し込まず、形を整えながら包んでください。これを一番外側の層まで繰り返すと、入れ子の四面体マトリョーシカの完成です。</li>
+        <li>切り開きは、まず辺にカッターの刃先で軽く切れ込みの印をつけ、そこからハサミで少しずつ切り開きます。開いたときに現れる形を想像しながら、自由に切るのが楽しさです。切り開いた形は、ノートに貼ったり写真に撮ったりして残しましょう。</li>
+      </ol>
+      <div class="warn"><strong>安全のために：</strong>カッターとハサミは刃物です。カッターを使う作業は大人の人と一緒に行い、刃の進行方向に手を置かないでください。切るときは机の上にカッターマットなどを敷き、少しずつ、浅く切るのがこつです。切り終わったら刃をしまってから片付けてください。</div>
+    </div>
+    <div class="card">
+      <h2>コラム：なぜ展開図は平面を敷き詰めるのか</h2>
+      <p>正四面体の展開図は、正三角形が4つ集まった形です。正三角形のひとつの角は60°で、平面の1点のまわりには正三角形が6つ集まるとちょうど360°になって、隙間も重なりもなくぴったり収まります。つまり正三角形の集まりは、そのまま平面のタイル張り（テッセレーション）の一部になっているのです。</p>
+      <p>だから四面体の展開図を並べていくと、平面をどこまでも敷き詰められます。しかも、展開図の輪郭で隣と向かい合う辺は、長さも向きも対応しているので、輪郭をまたいで引いた切り取り線や模様は、隣の展開図へそのままつながります。この工房の内蔵模様と敷き詰めプレビューは、その性質を使って作ってあります。</p>
+      <h3>きっかけと、2007年の実験</h3>
+      <p>きっかけは、秋山仁先生のNHK高校講座「数学と芸術」で、四面体の展開図で平面が敷き詰められるのを見たことでした。面白くなって、2007年の夏に自分でも実験してみました。色紙に展開図を印刷して四面体を組み立て、それを外側から覆うように次の四面体を組み立てて、4重・5重の入れ子にします。できあがった入れ子に、辺からカッターで切れ込みを入れてハサミで自由に切り開いていくのです。</p>
+      <p>切り開く前に「開いたらどんな形になるだろう」と想像するのですが、実際に開いてみると、思いがけない形が現れることがあります。その偶然の形の美しさが、この工作のいちばんの楽しさでした。この工房は、その実験をもう一度楽しめるように、そして寸法計算や敷き詰めの確かめを手伝えるように作ったものです。</p>
+      <h3>入れ子の寸法について</h3>
+      <p>正四面体の一辺を a とすると、高さは a×√(2/3)、内接球（内側にぴったり入る球）の半径は a×√6/12、外接球（頂点を通る球）の半径は a×√6/4 です。内側の四面体を同じ向き・同じ底面で重ねる置き方では、一辺を12mmずつ小さくしていくと、内側の頂点から外側の斜面まで約3.3mmのすき間が残ることを計算で確かめてあります。この工房の型紙は、その寸法（96／84／72／60／48mm）を使っています。</p>
+    </div>
+  </section>
+</div>
+<div id="bootError">アプリの起動に失敗しました。ページを再読み込みしてみてください。</div>
+<noscript><div style="padding:16px">このアプリは JavaScript を使います。ブラウザの設定で有効にしてください。</div></noscript>
+<script>
+"use strict";
+'use strict';
+/* ===== 四面体マトリョーシカ工房 =====
+   幾何：正四面体の展開図（正三角形を4つに割った形）。
+   入れ子の寸法は、同方向・同底面の相似配置で「斜面まで約3.3mmのすき間」を数値検証済み。 */
+
+/* ---------- 音（Web Audio合成） ---------- */
+const Sound = {
+  ctx: null, enabled: true,
+  ensure() {
+    if (!this.ctx) { try { this.ctx = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { this.ctx = null; } }
+    if (this.ctx && this.ctx.state === 'suspended' && this.ctx.resume) { try { const p = this.ctx.resume(); if (p && p.catch) p.catch(() => {}); } catch (e) {} }
+    return this.ctx;
+  },
+  tone(f0, dur, vol, delay, f1) {
+    const ctx = this.ensure(); if (!ctx || !this.enabled) return;
+    const t = ctx.currentTime + (delay || 0);
+    const o = ctx.createOscillator(), g = ctx.createGain();
+    o.type = 'sine';
+    o.frequency.setValueAtTime(f0, t);
+    if (f1) o.frequency.exponentialRampToValueAtTime(f1, t + dur);
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(vol, t + 0.02);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    o.connect(g); g.connect(ctx.destination);
+    o.start(t); o.stop(t + dur + 0.05);
+  },
+  click() { this.tone(1250, 0.05, 0.08, 0, 700); },
+  snip() { this.tone(2400, 0.04, 0.10, 0, 900); this.tone(1800, 0.05, 0.07, 0.05, 800); },
+  done() { this.tone(660, 0.12, 0.12); this.tone(880, 0.16, 0.12, 0.1); }
+};
+
+/* ---------- 寸法表（検証済み） ---------- */
+/* 一辺(mm)。隣り合う層は12mm差：内側の頂点から外側の斜面まで約3.27mmのすき間 */
+const LAYERS = [
+  { edge: 96, name: '第1層（一番外側）', color: '#d94f3d', colorName: 'あか' },
+  { edge: 84, name: '第2層', color: '#ef8f2e', colorName: 'だいだい' },
+  { edge: 72, name: '第3層', color: '#e7c531', colorName: 'きいろ' },
+  { edge: 60, name: '第4層', color: '#58a65c', colorName: 'みどり' },
+  { edge: 48, name: '第5層（一番内側）', color: '#4a7ec2', colorName: 'あお' }
+];
+const SQ3 = Math.sqrt(3);
+
+/* 展開図の形（単位＝小さい正三角形の一辺を1とする）：
+   大きな正三角形 V0(0,√3) V1(2,√3) V2(1,0)、中点 M01(1,√3) M12(1.5,√3/2) M20(0.5,√3/2) */
+const NET = {
+  V: [[0, SQ3], [2, SQ3], [1, 0]],
+  M: [[1, SQ3], [1.5, SQ3 / 2], [0.5, SQ3 / 2]],
+  // 角の小三角形（面）と中央の小三角形
+  faces: [
+    [[0, SQ3], [1, SQ3], [0.5, SQ3 / 2]],
+    [[1, SQ3], [2, SQ3], [1.5, SQ3 / 2]],
+    [[0.5, SQ3 / 2], [1.5, SQ3 / 2], [1, 0]],
+    [[1, SQ3], [1.5, SQ3 / 2], [0.5, SQ3 / 2]]
+  ],
+  // 糊しろを付ける辺（各角の面に1つずつ、回転対称に）：[始点, 終点, 外向きの目安点]
+  tabEdges: [
+    [[0, SQ3], [1, SQ3], [0.5, SQ3 + 1]],
+    [[2, SQ3], [1.5, SQ3 / 2], [2.5, SQ3 * 0.75]],
+    [[0.5, SQ3 / 2], [1, 0], [0, 0]]
+  ]
+};
+
+const state = {
+  layers: 5,
+  pattern: 'none',
+  image: null,       // HTMLImageElement（端末内のみ）
+  strokes: [],       // 切り取り線（輪郭で折り返すため、複数の部分線の集まり）
+  split: null,       // {a: ポリゴン, b: ポリゴン, t: 0..1}
+  splitAnim: 0
+};
+
+/* ---------- 絵柄（タイルのローカル座標で描く。継ぎ目でつながる設計） ---------- */
+function drawPattern(ctx, S, kind, ink) {
+  // S = 小さい三角形の一辺(px)。描画範囲は大きな三角形（クリップ済み前提）
+  const H = S * SQ3;
+  ctx.save();
+  if (kind === 'dots') {
+    ctx.fillStyle = ink;
+    const dots = [
+      [0, H, 0.14], [2 * S, H, 0.14], [S, 0, 0.14],
+      [S, H, 0.11], [1.5 * S, H / 2, 0.11], [0.5 * S, H / 2, 0.11],
+      [0.5 * S, H * 5 / 6, 0.09], [1.5 * S, H * 5 / 6, 0.09], [S, H / 6, 0.09], [S, H / 2, 0.09]
+    ];
+    for (const [x, y, r] of dots) { ctx.beginPath(); ctx.arc(x, y, r * S, 0, Math.PI * 2); ctx.fill(); }
+  } else if (kind === 'waves') {
+    ctx.fillStyle = ink;
+    const P = S / SQ3; // cos波の周期（継ぎ目の対称性から決まる）
+    for (let k = -1; k * P < H + P; k++) {
+      const yTop = H - P * (k + 0.25), yBot = H - P * (k - 0.25);
+      ctx.fillRect(-2, yTop, 2 * S + 4, yBot - yTop);
+    }
+  } else if (kind === 'triangles') {
+    ctx.fillStyle = ink;
+    // 角の小三角形3つを塗る（中央は抜く）→ 隣のタイルと色がつながる
+    for (let i = 0; i < 3; i++) {
+      const f = NET.faces[i];
+      ctx.beginPath();
+      ctx.moveTo(f[0][0] * S, f[0][1] * S);
+      ctx.lineTo(f[1][0] * S, f[1][1] * S);
+      ctx.lineTo(f[2][0] * S, f[2][1] * S);
+      ctx.closePath(); ctx.fill();
+    }
+  } else if (kind === 'flowers') {
+    ctx.strokeStyle = ink; ctx.fillStyle = ink;
+    const cents = [[0.5, 5 / 6], [1.5, 5 / 6], [1, 1 / 6], [1, 1 / 2]];
+    for (const [ux, uy] of cents) {
+      const x = ux * S, y = uy * H;
+      ctx.lineWidth = 0.05 * S;
+      ctx.beginPath(); ctx.arc(x, y, 0.17 * S, 0, Math.PI * 2); ctx.stroke();
+      ctx.beginPath(); ctx.arc(x, y, 0.055 * S, 0, Math.PI * 2); ctx.fill();
+    }
+    for (const [x, y] of [[0, H], [2 * S, H], [S, 0], [S, H], [1.5 * S, H / 2], [0.5 * S, H / 2]]) {
+      ctx.beginPath(); ctx.arc(x, y, 0.06 * S, 0, Math.PI * 2); ctx.fill();
+    }
+  } else if (kind === 'image' && state.image) {
+    const img = state.image;
+    const bw = 2 * S, bh = H;
+    const sc = Math.max(bw / img.width, bh / img.height);
+    const dw = img.width * sc, dh = img.height * sc;
+    ctx.drawImage(img, (bw - dw) / 2, (bh - dh) / 2, dw, dh);
+  }
+  ctx.restore();
+}
+
+function traceNet(ctx, S) {
+  ctx.beginPath();
+  ctx.moveTo(0, S * SQ3);
+  ctx.lineTo(2 * S, S * SQ3);
+  ctx.lineTo(S, 0);
+  ctx.closePath();
+}
+
+/* 展開図一式を ctx に描く（原点＝展開図の左上、S＝小三角形の一辺px）
+   opt: {faceFill, line, fold, tabs:bool, patternInk, lw} */
+function drawNet(ctx, S, opt) {
+  const o = Object.assign({ faceFill: null, line: '#333', fold: '#999', tabs: true, patternInk: null, lw: Math.max(1.4, S * 0.012) }, opt || {});
+  const H = S * SQ3;
+  ctx.save();
+  // 面の下地＋絵柄（輪郭でクリップ）
+  ctx.save();
+  traceNet(ctx, S);
+  ctx.clip();
+  if (o.faceFill) { ctx.fillStyle = o.faceFill; ctx.fillRect(-S * 0.3, -S * 0.3, 2 * S + S * 0.6, H + S * 0.6); }
+  if (state.pattern !== 'none') drawPattern(ctx, S, state.pattern, o.patternInk || 'rgba(70,45,20,0.5)');
+  ctx.restore();
+  // 糊しろ
+  if (o.tabs) {
+    ctx.fillStyle = 'rgba(120,120,120,0.10)';
+    ctx.strokeStyle = o.fold; ctx.lineWidth = o.lw * 0.8;
+    for (const [p, q] of NET.tabEdges.map(t => [t[0], t[1]])) {
+      const ax = p[0] * S, ay = p[1] * S, bx = q[0] * S, by = q[1] * S;
+      const mx = (ax + bx) / 2, my = (ay + by) / 2;
+      // 外向き法線
+      let nx = -(by - ay), ny = (bx - ax);
+      const cx = S, cy = H * 2 / 3;
+      if ((mx + nx - cx) * nx + (my + ny - cy) * ny < 0) { nx = -nx; ny = -ny; }
+      const nl = Math.hypot(nx, ny); nx /= nl; ny /= nl;
+      const depth = S * 0.34, inset = 0.16;
+      const t1x = ax + (bx - ax) * inset + nx * depth, t1y = ay + (by - ay) * inset + ny * depth;
+      const t2x = bx - (bx - ax) * inset + nx * depth, t2y = by - (by - ay) * inset + ny * depth;
+      ctx.beginPath();
+      ctx.moveTo(ax, ay); ctx.lineTo(t1x, t1y); ctx.lineTo(t2x, t2y); ctx.lineTo(bx, by); ctx.closePath();
+      ctx.fill(); ctx.stroke();
+    }
+  }
+  // 折り線（点線）：中点どうし
+  ctx.strokeStyle = o.fold; ctx.lineWidth = o.lw * 0.9;
+  ctx.setLineDash([S * 0.09, S * 0.07]);
+  ctx.beginPath();
+  const M = NET.M;
+  ctx.moveTo(M[0][0] * S, M[0][1] * S); ctx.lineTo(M[1][0] * S, M[1][1] * S);
+  ctx.lineTo(M[2][0] * S, M[2][1] * S); ctx.closePath();
+  ctx.stroke();
+  ctx.setLineDash([]);
+  // 輪郭（実線）
+  ctx.strokeStyle = o.line; ctx.lineWidth = o.lw;
+  traceNet(ctx, S);
+  ctx.stroke();
+  ctx.restore();
+}
+
+/* ---------- 型紙タブ ---------- */
+function renderSizeTable() {
+  const rows = ['<tr><th>層</th><th>おすすめの色紙</th><th>一辺</th><th>高さ</th><th>内側とのすき間</th></tr>'];
+  for (let i = 0; i < state.layers; i++) {
+    const L = LAYERS[i];
+    const gap = i + 1 < LAYERS.length ? '約3.3mm' : '―（一番内側）';
+    rows.push(`<tr><td>${L.name}</td><td><span class="swatch" style="background:${L.color}"></span>${L.colorName}</td><td>${L.edge}mm</td><td>${(L.edge * Math.sqrt(2 / 3)).toFixed(1)}mm</td><td>${gap}</td></tr>`);
+  }
+  document.getElementById('sizeTable').innerHTML = rows.join('');
+}
+
+function renderGenerator() {
+  const cv = document.getElementById('genCanvas');
+  const ctx = cv.getContext('2d');
+  ctx.clearRect(0, 0, cv.width, cv.height);
+  // 選んだ層の展開図を段々に並べる（大きい順）
+  const n = state.layers;
+  const S = 108;
+  const gapX = 26;
+  let x = 18, y = 150;
+  for (let i = 0; i < n; i++) {
+    const s = S * (LAYERS[i].edge / 96);
+    ctx.save();
+    ctx.translate(x, y - s * SQ3);
+    drawNet(ctx, s, { faceFill: LAYERS[i].color + '2e', patternInk: 'rgba(70,45,20,0.45)' });
+    ctx.restore();
+    ctx.fillStyle = '#3a2c1c';
+    ctx.font = '700 15px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText(`${LAYERS[i].name} ${LAYERS[i].edge}mm`, x + s, y + 26);
+    x += 2 * s + gapX;
+    if (x > cv.width - 120 && i < n - 1) { x = 18; y += 220; }
+  }
+  // ダウンロードボタン
+  const row = document.getElementById('dlRow');
+  row.innerHTML = '';
+  for (let i = 0; i < n; i++) {
+    const b = document.createElement('button');
+    b.className = 'btn sub'; b.type = 'button';
+    b.textContent = `${LAYERS[i].name}を書き出す`;
+    b.addEventListener('click', () => { exportLayer(i); Sound.click(); });
+    row.appendChild(b);
+  }
+}
+
+/* A4横・300dpi（3508×2480）で層の型紙を書き出す。戻り値は検証用情報 */
+function buildLayerCanvas(i) {
+  const DPI = 300, MM = DPI / 25.4;
+  const cv = document.createElement('canvas');
+  cv.width = 3508; cv.height = 2480;
+  const ctx = cv.getContext('2d');
+  ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, cv.width, cv.height);
+  const L = LAYERS[i];
+  const S = L.edge * MM; // 小三角形の一辺＝四面体の一辺
+  const netW = 2 * S, netH = S * SQ3;
+  const ox = (cv.width - netW) / 2, oy = (cv.height - netH) / 2 + 40;
+  ctx.save();
+  ctx.translate(ox, oy);
+  drawNet(ctx, S, { faceFill: '#ffffff', patternInk: 'rgba(0,0,0,0.55)', lw: 3 });
+  ctx.restore();
+  // 見出し
+  ctx.fillStyle = '#000';
+  ctx.font = '700 54px sans-serif'; ctx.textAlign = 'left';
+  ctx.fillText(`四面体マトリョーシカ ${L.name}（一辺 ${L.edge}mm）`, 90, 120);
+  ctx.font = '40px sans-serif';
+  ctx.fillStyle = L.color;
+  ctx.fillRect(90, 150, 60, 60);
+  ctx.fillStyle = '#000';
+  ctx.fillText(`おすすめの色紙：${L.colorName}　実線＝切る線、点線＝折り線、うすい部分＝糊しろ`, 175, 195);
+  // 5cm確認線（右下）
+  const calLen = 50 * MM, calX = cv.width - 90 - calLen, calY = cv.height - 110;
+  ctx.strokeStyle = '#000'; ctx.lineWidth = 4;
+  ctx.beginPath();
+  ctx.moveTo(calX, calY); ctx.lineTo(calX + calLen, calY);
+  ctx.moveTo(calX, calY - 18); ctx.lineTo(calX, calY + 18);
+  ctx.moveTo(calX + calLen, calY - 18); ctx.lineTo(calX + calLen, calY + 18);
+  ctx.stroke();
+  ctx.font = '40px sans-serif'; ctx.textAlign = 'center';
+  ctx.fillText('5cm', calX + calLen / 2, calY - 30);
+  return { canvas: cv, S, ox, oy, cal: { x1: calX, x2: calX + calLen, y: calY, pxPerMm: MM } };
+}
+
+function exportLayer(i) {
+  const { canvas } = buildLayerCanvas(i);
+  const a = document.createElement('a');
+  a.download = `tetra-layer${i + 1}-${LAYERS[i].edge}mm.png`;
+  a.href = canvas.toDataURL('image/png');
+  a.click();
+  document.getElementById('genStatus').textContent = `${LAYERS[i].name}の型紙（A4・300dpi）を書き出しました。`;
+}
+
+/* ---------- 切り開きシミュレーター ---------- */
+const SIM = { S: 165, OX: 195, OY: 150 };
+const TILE = { S: 86 };
+
+function triVertices() { return NET.V; }
+function pointInTri(p, tri) {
+  const [a, b, c] = tri;
+  const d = (b[1] - c[1]) * (a[0] - c[0]) + (c[0] - b[0]) * (a[1] - c[1]);
+  const u = ((b[1] - c[1]) * (p[0] - c[0]) + (c[0] - b[0]) * (p[1] - c[1])) / d;
+  const v = ((c[1] - a[1]) * (p[0] - c[0]) + (a[0] - c[0]) * (p[1] - c[1])) / d;
+  const w = 1 - u - v;
+  return [u, v, w];
+}
+function clampToTri(p) {
+  const tri = triVertices();
+  const [u, v, w] = pointInTri(p, tri);
+  if (u >= -1e-9 && v >= -1e-9 && w >= -1e-9) return [p[0], p[1]];
+  // 最も近い辺へ射影
+  let best = null, bd = Infinity;
+  for (let i = 0; i < 3; i++) {
+    const a = tri[i], b = tri[(i + 1) % 3];
+    const ab = [b[0] - a[0], b[1] - a[1]];
+    const t = Math.max(0, Math.min(1, ((p[0] - a[0]) * ab[0] + (p[1] - a[1]) * ab[1]) / (ab[0] * ab[0] + ab[1] * ab[1])));
+    const q = [a[0] + ab[0] * t, a[1] + ab[1] * t];
+    const d = Math.hypot(p[0] - q[0], p[1] - q[1]);
+    if (d < bd) { bd = d; best = q; }
+  }
+  return best;
+}
+function distToBoundary(p) {
+  const tri = triVertices();
+  let bd = Infinity;
+  for (let i = 0; i < 3; i++) {
+    const a = tri[i], b = tri[(i + 1) % 3];
+    const ab = [b[0] - a[0], b[1] - a[1]];
+    const t = Math.max(0, Math.min(1, ((p[0] - a[0]) * ab[0] + (p[1] - a[1]) * ab[1]) / 4));
+    const q = [a[0] + ab[0] * t, a[1] + ab[1] * t];
+    bd = Math.min(bd, Math.hypot(p[0] - q[0], p[1] - q[1]));
+  }
+  return bd;
+}
+/* 境界上の点を「周長パラメータ」(0..3、辺ごとに1) で表す */
+function boundaryParam(p) {
+  const tri = triVertices();
+  for (let i = 0; i < 3; i++) {
+    const a = tri[i], b = tri[(i + 1) % 3];
+    const ab = [b[0] - a[0], b[1] - a[1]];
+    const t = ((p[0] - a[0]) * ab[0] + (p[1] - a[1]) * ab[1]) / 4;
+    if (t >= -0.02 && t <= 1.02) {
+      const q = [a[0] + ab[0] * Math.max(0, Math.min(1, t)), a[1] + ab[1] * Math.max(0, Math.min(1, t))];
+      if (Math.hypot(p[0] - q[0], p[1] - q[1]) < 0.06) return i + Math.max(0, Math.min(1, t));
+    }
+  }
+  return null;
+}
+function boundaryPoint(param) {
+  const tri = triVertices();
+  const i = Math.floor(param) % 3, t = param - Math.floor(param);
+  const a = tri[i], b = tri[(i + 1) % 3];
+  return [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t];
+}
+function boundaryWalk(from, to) {
+  // from から to へ、パラメータ増加方向に歩いた点列（両端を含む）
+  const pts = [boundaryPoint(from)];
+  let cur = from;
+  while (true) {
+    const nextVertex = Math.floor(cur) + 1;
+    const target = to >= from ? to : to + 3;
+    if (nextVertex >= target) break;
+    pts.push(boundaryPoint(nextVertex % 3 === 0 && nextVertex !== 0 ? 0 : nextVertex));
+    cur = nextVertex;
+    if (pts.length > 6) break;
+  }
+  pts.push(boundaryPoint(to));
+  return pts;
+}
+function polyArea(poly) {
+  let a = 0;
+  for (let i = 0; i < poly.length; i++) {
+    const [x1, y1] = poly[i], [x2, y2] = poly[(i + 1) % poly.length];
+    a += x1 * y2 - x2 * y1;
+  }
+  return a / 2;
+}
+
+function trySplit() {
+  let bestLine = null;
+  for (const line of state.strokes) {
+    if (line.length < 2) continue;
+    const p0 = boundaryParam(line[0]), p1 = boundaryParam(line[line.length - 1]);
+    if (p0 === null || p1 === null) continue;
+    if (Math.abs(p0 - p1) < 0.05 || Math.abs(Math.abs(p0 - p1) - 3) < 0.05) continue;
+    if (!bestLine || line.length > bestLine.line.length) bestLine = { line, p0, p1 };
+  }
+  if (!bestLine) {
+    const has = state.strokes.some(l => l.length > 1);
+    return { ok: false, reason: has
+      ? '切り取り線の両端を、展開図の輪郭まで引いてください（今は切り込みとして表示しています）。'
+      : '線が引かれていません。' };
+  }
+  const { line: cut, p0, p1 } = bestLine;
+  const total = Math.abs(polyArea(triVertices()));
+  const chainA = cut.concat(boundaryWalk(p1, p0).slice(1, -1));
+  const chainB = boundaryWalk(p0, p1).concat(cut.slice().reverse().slice(1, -1));
+  const aA = Math.abs(polyArea(chainA)), aB = Math.abs(polyArea(chainB));
+  if (aA < total * 0.02 || aB < total * 0.02) return { ok: false, reason: '片方の部分が小さすぎます。もう少し内側を通る線にしてください。' };
+  state.split = { a: chainA, b: chainB, areaA: aA, areaB: aB };
+  state.splitFrom = cut;
+  state.splitAnim = 0;
+  return { ok: true, areaA: aA, areaB: aB, total };
+}
+
+/* 線分 a->b と三角形の輪郭との交点（a に最も近いもの）と、その辺の中点を返す */
+function segmentBoundaryCrossing(a, b) {
+  const tri = triVertices();
+  let best = null;
+  for (let i = 0; i < 3; i++) {
+    const A = tri[i], B = tri[(i + 1) % 3];
+    const d1 = [b[0] - a[0], b[1] - a[1]], d2 = [B[0] - A[0], B[1] - A[1]];
+    const den = d1[0] * d2[1] - d1[1] * d2[0];
+    if (Math.abs(den) < 1e-12) continue;
+    const t = ((A[0] - a[0]) * d2[1] - (A[1] - a[1]) * d2[0]) / den;
+    const s = ((A[0] - a[0]) * d1[1] - (A[1] - a[1]) * d1[0]) / den;
+    if (t > 1e-9 && t <= 1 && s >= -1e-9 && s <= 1 + 1e-9) {
+      if (!best || t < best.t) best = { t, point: [a[0] + d1[0] * t, a[1] + d1[1] * t], mid: [(A[0] + B[0]) / 2, (A[1] + B[1]) / 2] };
+    }
+  }
+  return best;
+}
+
+/* 生の線（輪郭の外にはみ出してよい）を、輪郭で折り返した部分線の集まりに変換する。
+   輪郭を越えたら、その辺の中点まわりの180°回転で折り返して続ける。
+   これにより、敷き詰めた平面でも線は継ぎ目でつながる。 */
+function segmentStroke(rawPts) {
+  const strokes = [];
+  let frame = p => [p[0], p[1]];
+  let cur = null, lastP = null, wrapped = false;
+  for (const raw of rawPts) {
+    let p = frame(raw);
+    if (!cur) {
+      const cp = clampToTri(p);
+      cur = [cp]; strokes.push(cur); lastP = cp;
+      continue;
+    }
+    let guard = 0;
+    while (guard++ < 4) {
+      const bc = pointInTri(p, triVertices());
+      const inside = bc[0] >= -1e-9 && bc[1] >= -1e-9 && bc[2] >= -1e-9;
+      if (inside) {
+        if (Math.hypot(p[0] - lastP[0], p[1] - lastP[1]) > 1e-4) cur.push(p);
+        lastP = p;
+        break;
+      }
+      const x = segmentBoundaryCrossing(lastP, p);
+      if (!x) { const cp = clampToTri(p); cur.push(cp); lastP = cp; break; }
+      cur.push(x.point);
+      const mx = x.mid[0], my = x.mid[1];
+      const oldFrame = frame;
+      frame = q => { const r = oldFrame(q); return [2 * mx - r[0], 2 * my - r[1]]; };
+      wrapped = true;
+      cur = [[2 * mx - x.point[0], 2 * my - x.point[1]]];
+      strokes.push(cur);
+      lastP = cur[0];
+      p = frame(raw);
+    }
+  }
+  return { strokes, wrapped };
+}
+
+/* タイル1枚をローカル座標で描く（模様＋折り線＋輪郭＋切り取り線） */
+function drawTileFace(ctx, S, withCut) {
+  const H = S * SQ3;
+  ctx.save();
+  traceNet(ctx, S);
+  ctx.clip();
+  ctx.fillStyle = '#fdf3d8';
+  ctx.fillRect(-S * 0.3, -S * 0.3, 2 * S + S * 0.6, H + S * 0.6);
+  if (state.pattern !== 'none') drawPattern(ctx, S, state.pattern, 'rgba(70,45,20,0.5)');
+  ctx.restore();
+  ctx.strokeStyle = 'rgba(120,90,50,0.5)';
+  ctx.lineWidth = Math.max(1, S * 0.01);
+  ctx.setLineDash([S * 0.08, S * 0.06]);
+  ctx.beginPath();
+  const M = NET.M;
+  ctx.moveTo(M[0][0] * S, M[0][1] * S); ctx.lineTo(M[1][0] * S, M[1][1] * S);
+  ctx.lineTo(M[2][0] * S, M[2][1] * S); ctx.closePath(); ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.strokeStyle = '#6b4f2a'; ctx.lineWidth = Math.max(1.2, S * 0.014);
+  traceNet(ctx, S); ctx.stroke();
+  if (withCut) {
+    ctx.strokeStyle = '#c0392b'; ctx.lineWidth = Math.max(2, S * 0.03);
+    ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+    for (const line of state.strokes) {
+      if (line.length < 2) continue;
+      ctx.beginPath();
+      line.forEach(([x, y], i) => { if (i === 0) ctx.moveTo(x * S, y * S); else ctx.lineTo(x * S, y * S); });
+      ctx.stroke();
+    }
+  }
+}
+
+function drawSim() {
+  const cv = document.getElementById('simCanvas');
+  const ctx = cv.getContext('2d');
+  ctx.clearRect(0, 0, cv.width, cv.height);
+  const { S, OX, OY } = SIM;
+  if (state.split) {
+    const t = state.splitAnim;
+    const cut = state.splitFrom || [];
+    const dir = [cut[cut.length - 1][0] - cut[0][0], cut[cut.length - 1][1] - cut[0][1]];
+    const dl = Math.hypot(dir[0], dir[1]) || 1;
+    const nx = -dir[1] / dl, ny = dir[0] / dl;
+    for (const [poly, sgn] of [[state.split.a, 1], [state.split.b, -1]]) {
+      const off = 30 * t;
+      ctx.save();
+      ctx.translate(OX + nx * off * sgn, OY + ny * off * sgn);
+      ctx.beginPath();
+      poly.forEach(([x, y], i) => { if (i === 0) ctx.moveTo(x * S, y * S); else ctx.lineTo(x * S, y * S); });
+      ctx.closePath();
+      ctx.save();
+      ctx.clip();
+      ctx.translate(-OX - nx * off * sgn + OX, -OY - ny * off * sgn + OY); // パターンの位置合わせは下で再変換
+      ctx.restore();
+      // 模様は元の展開図座標で描く
+      ctx.save();
+      ctx.beginPath();
+      poly.forEach(([x, y], i) => { if (i === 0) ctx.moveTo(x * S, y * S); else ctx.lineTo(x * S, y * S); });
+      ctx.closePath(); ctx.clip();
+      ctx.translate(-nx * off * sgn, -ny * off * sgn);
+      ctx.save();
+      ctx.translate(0, 0);
+      ctx.fillStyle = '#fdf3d8';
+      ctx.fillRect(-60, -60, 2 * S + 120, S * SQ3 + 120);
+      if (state.pattern !== 'none') drawPattern(ctx, S, state.pattern, 'rgba(70,45,20,0.5)');
+      ctx.restore();
+      ctx.restore();
+      ctx.strokeStyle = '#6b4f2a'; ctx.lineWidth = 2;
+      ctx.beginPath();
+      poly.forEach(([x, y], i) => { if (i === 0) ctx.moveTo(x * S, y * S); else ctx.lineTo(x * S, y * S); });
+      ctx.closePath(); ctx.stroke();
+      // 切り口を赤く
+      ctx.strokeStyle = '#c0392b'; ctx.lineWidth = 3;
+      ctx.beginPath();
+      cut.forEach(([x, y], i) => { if (i === 0) ctx.moveTo(x * S, y * S); else ctx.lineTo(x * S, y * S); });
+      ctx.stroke();
+      ctx.restore();
+    }
+    return;
+  }
+  ctx.save();
+  ctx.translate(OX, OY);
+  drawTileFace(ctx, S, true);
+  ctx.restore();
+}
+
+/* ---------- 敷き詰め ---------- */
+function compose(T, U) {
+  // T ∘ U（先に U を適用）
+  return [
+    T[0] * U[0] + T[2] * U[1],
+    T[1] * U[0] + T[3] * U[1],
+    T[0] * U[2] + T[2] * U[3],
+    T[1] * U[2] + T[3] * U[3],
+    T[0] * U[4] + T[2] * U[5] + T[4],
+    T[1] * U[4] + T[3] * U[5] + T[5]
+  ];
+}
+function reflectAbout(mx, my) { return [-1, 0, 0, -1, 2 * mx, 2 * my]; }
+function tessTransforms() {
+  const S = TILE.S;
+  const mids = NET.M.map(([x, y]) => [x * S, y * S]);
+  const refls = mids.map(([mx, my]) => reflectAbout(mx, my));
+  const key = T => T.map((v, i) => i < 4 ? Math.round(v) : Math.round(v / 8)).join(',');
+  const seen = new Map();
+  const I = [1, 0, 0, 1, 0, 0];
+  seen.set(key(I), I);
+  const queue = [I];
+  const W = 720, H = 520;
+  while (queue.length) {
+    const T = queue.shift();
+    for (const R of refls) {
+      const N2 = compose(T, R);
+      const k = key(N2);
+      if (seen.has(k)) continue;
+      // 重心が画面の少し外まで入っているものだけ採用
+      const cx = N2[0] * S + N2[2] * (SQ3 * 2 / 3) * S + N2[4];
+      const cy = N2[1] * S + N2[3] * (SQ3 * 2 / 3) * S + N2[5];
+      if (cx < -S * 2.6 || cx > W + S * 2.6 || cy < -S * 2.6 || cy > H + S * 2.6) continue;
+      seen.set(k, N2);
+      queue.push(N2);
+      if (seen.size > 90) return [...seen.values()];
+    }
+  }
+  return [...seen.values()];
+}
+let tileStart = null;
+function drawTiles(now) {
+  const cv = document.getElementById('tileCanvas');
+  const ctx = cv.getContext('2d');
+  ctx.clearRect(0, 0, cv.width, cv.height);
+  const S = TILE.S;
+  const copies = tessTransforms();
+  const center = [cv.width / 2, cv.height / 2];
+  const items = copies.map(T => {
+    const cx = T[0] * S + T[2] * (SQ3 * 2 / 3) * S + T[4] + 190;
+    const cy = T[1] * S + T[3] * (SQ3 * 2 / 3) * S + T[5] + 120;
+    return { T, d: Math.hypot(cx - center[0], cy - center[1]) };
+  }).sort((a, b) => a.d - b.d);
+  const elapsed = tileStart === null ? 1e9 : (now - tileStart);
+  for (const { T, d } of items) {
+    const alpha = Math.max(0, Math.min(1, (elapsed - d * 1.1) / 350));
+    if (alpha <= 0) continue;
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    ctx.translate(190, 120);
+    ctx.transform(T[0], T[1], T[2], T[3], T[4], T[5]);
+    drawTileFace(ctx, S, true);
+    ctx.restore();
+  }
+  if (elapsed < 1600) requestAnimationFrame(drawTiles);
+}
+
+/* ---------- 初期化 ---------- */
+function init() {
+  document.querySelectorAll('nav.tabs button').forEach(b => {
+    b.addEventListener('click', () => {
+      document.querySelectorAll('nav.tabs button').forEach(x => x.classList.toggle('on', x === b));
+      document.querySelectorAll('section.tab').forEach(s => s.classList.toggle('on', s.id === 'tab-' + b.dataset.tab));
+      Sound.click();
+      if (b.dataset.tab === 'sim') { drawSim(); drawTiles(performance.now()); }
+    });
+  });
+  const sb = document.getElementById('soundBtn');
+  const saved = (() => { try { return window.localStorage.getItem('tetra_sound'); } catch (e) { return null; } })();
+  if (saved === 'off') Sound.enabled = false;
+  const paintSound = () => { sb.textContent = Sound.enabled ? '🔊 音：オン' : '🔇 音：オフ'; };
+  paintSound();
+  sb.addEventListener('click', () => {
+    Sound.enabled = !Sound.enabled;
+    try { window.localStorage.setItem('tetra_sound', Sound.enabled ? 'on' : 'off'); } catch (e) {}
+    paintSound();
+    if (Sound.enabled) Sound.click();
+  });
+  document.querySelectorAll('#layerSeg button').forEach(b => {
+    b.addEventListener('click', () => {
+      document.querySelectorAll('#layerSeg button').forEach(x => x.classList.toggle('on', x === b));
+      state.layers = Number(b.dataset.layers);
+      renderSizeTable(); renderGenerator();
+      Sound.click();
+    });
+  });
+  document.querySelectorAll('#patternSeg button').forEach(b => {
+    b.addEventListener('click', () => {
+      document.querySelectorAll('#patternSeg button').forEach(x => x.classList.toggle('on', x === b));
+      state.pattern = b.dataset.pattern;
+      document.getElementById('imageField').style.display = state.pattern === 'image' ? 'block' : 'none';
+      renderGenerator(); drawSim(); drawTiles(performance.now());
+      Sound.click();
+    });
+  });
+  document.getElementById('imageInput').addEventListener('change', ev => {
+    const f = ev.target.files && ev.target.files[0];
+    if (!f) return;
+    const url = URL.createObjectURL(f);
+    const img = new Image();
+    img.onload = () => {
+      state.image = img;
+      renderGenerator(); drawSim(); drawTiles(performance.now());
+      document.getElementById('genStatus').textContent = '画像を読み込みました（端末内でのみ処理しています）。';
+    };
+    img.src = url;
+  });
+  // 切り取り線の描画（輪郭を越えたら辺の中点で折り返して続ける）
+  const sim = document.getElementById('simCanvas');
+  let drawing = false, curRaw = [], baseStrokes = [], wrapHintShown = false;
+  const toLocalRaw = ev => {
+    const r = sim.getBoundingClientRect();
+    const sx = (ev.clientX - r.left) * (sim.width / r.width);
+    const sy = (ev.clientY - r.top) * (sim.height / r.height);
+    return [(sx - SIM.OX) / SIM.S, (sy - SIM.OY) / SIM.S];
+  };
+  sim.addEventListener('pointerdown', ev => {
+    state.split = null;
+    drawing = true;
+    curRaw = [toLocalRaw(ev)];
+    state.strokes = baseStrokes.concat(segmentStroke(curRaw).strokes);
+    sim.setPointerCapture(ev.pointerId);
+    drawSim();
+  });
+  sim.addEventListener('pointermove', ev => {
+    if (!drawing) return;
+    const p = toLocalRaw(ev);
+    const last = curRaw[curRaw.length - 1];
+    if (Math.hypot(p[0] - last[0], p[1] - last[1]) > 0.02) {
+      curRaw.push(p);
+      const seg = segmentStroke(curRaw);
+      state.strokes = baseStrokes.concat(seg.strokes);
+      if (seg.wrapped && !wrapHintShown) {
+        wrapHintShown = true;
+        document.getElementById('simStatus').textContent = '線が輪郭を越えたので、その辺の反対側の対応する位置から続きました。敷き詰めたとき、継ぎ目でつながる描き方です。';
+      }
+      drawSim();
+    }
+  });
+  const endStroke = () => {
+    if (!drawing) return;
+    drawing = false;
+    baseStrokes = state.strokes;
+    drawSim();
+  };
+  sim.addEventListener('pointerup', endStroke);
+  sim.addEventListener('pointercancel', endStroke);
+  document.getElementById('tetraClearHook')?.remove();
+  document.getElementById('cutClearBtn').addEventListener('click', () => {
+    state.strokes = []; baseStrokes = []; curRaw = []; state.split = null;
+    document.getElementById('simStatus').textContent = '';
+    drawSim(); Sound.click();
+  });
+  document.getElementById('splitBtn').addEventListener('click', () => {
+    const r = trySplit();
+    const st = document.getElementById('simStatus');
+    if (!r.ok) { st.textContent = r.reason; return; }
+    st.textContent = `切り開きました（2つの部分の面積比は約 ${Math.round(r.areaA / r.total * 100)}：${Math.round(r.areaB / r.total * 100)}）。`;
+    Sound.snip();
+    const t0 = performance.now();
+    const step = now => {
+      state.splitAnim = Math.min(1, (now - t0) / 900);
+      drawSim();
+      if (state.splitAnim < 1) requestAnimationFrame(step);
+      else { drawTiles(performance.now()); tileStart = performance.now(); requestAnimationFrame(drawTiles); }
+    };
+    requestAnimationFrame(step);
+  });
+  document.getElementById('tilePlayBtn').addEventListener('click', () => {
+    tileStart = performance.now();
+    requestAnimationFrame(drawTiles);
+    Sound.click();
+  });
+  renderSizeTable();
+  renderGenerator();
+  drawSim();
+  drawTiles(performance.now());
+  window.__tetraBooted = true;
+}
+
+window.__tetra = {
+  LAYERS, state, buildLayerCanvas, trySplit, tessTransforms,
+  setCut(pts) { state.strokes = [pts.map(p => [p[0], p[1]])]; state.split = null; },
+  segmentStroke,
+  setPattern(k) { state.pattern = k; },
+  netArea() { return Math.abs(polyArea(triVertices())); },
+  boundaryParam, drawTiles, drawSim, renderGenerator
+};
+
+try {
+  init();
+} catch (e) {
+  const b = document.getElementById('bootError');
+  if (b) b.style.display = 'block';
+  throw e;
+}
+
+</script>
+</body>
+</html>
